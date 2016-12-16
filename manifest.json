@@ -15,11 +15,15 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.discogs.com/sell/manage_edit"],
-      "js": ["lib/jquery-3.1.1.min.js", "lib/Dropbox-sdk.min.js", "dropbox-secret.js", "add-upload.js"]
+      "matches": ["https://www.discogs.com/buy*"],
+      "js": ["lib/jquery-3.1.1.min.js", "lib/Dropbox-sdk.min.js", "dropbox-secret.js", "sell.js"]
     }, {
       "matches": ["https://www.discogs.com/sell/manage*"],
       "js": ["lib/jquery-3.1.1.min.js", "lib/Dropbox-sdk.min.js", "dropbox-secret.js", "add-upload.js"],
+      "run_at": "document_idle"
+   }, {
+     "matches" : ["https://www.discogs.com/sell/item*"],
+     "js": ["lib/jquery-3.1.1.min.js", "lib/Dropbox-sdk.min.js", "dropbox-secret.js", "sell.js"],
       "run_at": "document_idle"
    }
   ]
