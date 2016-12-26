@@ -4,12 +4,12 @@ $('table.sell > thead > tr').append("<th>IMG</th>");
 var dbx = new Dropbox({ accessToken: accessToken });
 
 function filePath(itemNumber) {
-  return itemFolder = "/" + itemNumber + "/images/";
+  return itemFolder = "/" + itemNumber + "/images";
 }
 
 function uploadToDropbox(file, itemNumber) {
 
-  var fp = filePath(itemNumber) + file.name;
+  var fp = filePath(itemNumber) + "/" + file.name;
   console.log("starting upload of " + fp);
   dbx.filesUpload({path: fp, contents: file})
     .then(function(response) {
@@ -61,16 +61,27 @@ function addImage(tr) {
 function updateUploadHtml(itemNumber) {
   var element = document.getElementById('uploadItem' + itemNumber);
   if (element) {
-    var path = filePath(itemNumber);
-    dbx.filesListFolder({path: path})
+    var path = filePath(itemNumber) ;
+    dbx.filesListFolder({path: path + "/"})
       .then(function(response) {
-        $(element).html('<a href="https://www.dropbox.com/home/Apps/discogs-inventory-images' + path + '">DB</a>');
-        $(element).append('<ul>');
-        for (var i = 0; i < response.entries.length; i++) {
-          console.log(response.entries[i]);
-          $(element).append('<li>' + response.entries[i].name + '</li>');
-        }
-        $(element).append('</ul>');
+	dbx.sharingCreateSharedLink({path:path}).then(function(response2) {
+          $(element).html('<a href="https://www.dropbox.com/home/Apps/discogs-inventory-images' + path + '">DB</a> ');
+	  var copyFrom = $('<span>CP</span>');
+	  $(element).append(copyFrom);
+	  copyFrom.click(function() { 
+	    var $temp = $("<input>");
+	    $("body").append($temp);
+	    $temp.val(response2.url).select();
+	    document.execCommand("copy");
+	   $temp.remove();
+	  }); 
+          $(element).append('<ul>');
+	  var ul = $(element).find('ul');
+          for (var i = 0; i < response.entries.length; i++) {
+            $(ul).append('<li>' + response.entries[i].name + '</li>');
+          }
+          
+        });
       })
       .catch(function(error) {
         console.error(error);
