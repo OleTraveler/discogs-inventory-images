@@ -1,5 +1,5 @@
 
-$('table.sell > thead > tr').append("<th>IMG</th>");
+$('table.sell > thead > tr').append("<th>Dropbox Images</th>");
 
 var dbx = new Dropbox({ accessToken: accessToken });
 
@@ -45,6 +45,7 @@ function initUpload(dragToElement, itemNumber) {
   }
 }
 
+/** Adds the 'Drop Here' message to the sell page.*/
 function addImage(tr) {
   var itemNumber = $(tr).children('td:nth-child(2)').text()
   if (itemNumber !== null) {
@@ -66,8 +67,9 @@ function updateUploadHtml(itemNumber) {
       .then(function(response) {
 	dbx.sharingCreateSharedLink({path:path}).then(function(response2) {
           $(element).html('<a href="https://www.dropbox.com/home/Apps/discogs-inventory-images' + path + '">DB</a> ');
-	  var copyFrom = $('<span>CP</span>');
+	  var copyFrom = $('<span>CP </span>');
 	  $(element).append(copyFrom);
+	  //clicking on the CP copies the URL to the clipboard.
 	  copyFrom.click(function() { 
 	    var $temp = $("<input>");
 	    $("body").append($temp);
@@ -75,11 +77,25 @@ function updateUploadHtml(itemNumber) {
 	    document.execCommand("copy");
 	   $temp.remove();
 	  }); 
-          $(element).append('<ul>');
-	  var ul = $(element).find('ul');
-          for (var i = 0; i < response.entries.length; i++) {
-            $(ul).append('<li>' + response.entries[i].name + '</li>');
-          }
+	  $(element).append("<span>" + response.entries.length + " files</span>");
+          
+	  
+          $(element).mouseover(function(event) {
+            $('<div id="tooltip' + itemNumber + '"></div>').appendTo('body');
+	    var div = document.getElementById("tooltip" + itemNumber);
+            $(div).append('<ul>');
+	    var ul = $(div).find('ul');
+            for (var i = 0; i < response.entries.length; i++) {
+              $(ul).append('<li>' + response.entries[i].name + '</li>');
+            }
+	    var tPosX = event.pageX - 10;
+	    var tPosY = event.pageY - 100;
+	    $('div.tooltip').css({'position': 'absolute', 'top': tPosY, 'left': tPosX});
+          }).mouseout(function(){
+            //create a hidefunction on the callback if you want
+	   $('#tooltip' + itemNumber).remove();
+          });
+
           
         });
       })

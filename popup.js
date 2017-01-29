@@ -1,118 +1,91 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+$( document ).ready(function() {
+    document.getElementById("gobutton").addEventListener("click", go);
+});
 
-/**
- * Get the current URL.
- *
- * @param {function(string)} callback - called when the URL of the current tab
- *   is found.
- */
-function getCurrentTabUrl(callback) {
-  // Query filter to be passed to chrome.tabs.query - see
-  // https://developer.chrome.com/extensions/tabs#method-query
-  var queryInfo = {
-    active: true,
-    currentWindow: true
-  };
+var rootDir = "/Users/tstevens/Dropbox/Apps/discogs-inventory-images/";
 
-  chrome.tabs.query(queryInfo, function(tabs) {
-    // chrome.tabs.query invokes the callback with a list of tabs that match the
-    // query. When the popup is opened, there is certainly a window and at least
-    // one tab, so we can safely assume that |tabs| is a non-empty array.
-    // A window can only have one active tab at a time, so the array consists of
-    // exactly one tab.
-    var tab = tabs[0];
-
-    // A tab is a plain object that provides information about the tab.
-    // See https://developer.chrome.com/extensions/tabs#type-Tab
-    var url = tab.url;
-
-    // tab.url is only available if the "activeTab" permission is declared.
-    // If you want to see the URL of other tabs (e.g. after removing active:true
-    // from |queryInfo|), then the "tabs" permission is required to see their
-    // "url" properties.
-    console.assert(typeof url == 'string', 'tab.url should be a string');
-
-    callback(url);
-  });
-
-  // Most methods of the Chrome extension APIs are asynchronous. This means that
-  // you CANNOT do something like this:
-  //
-  // var url;
-  // chrome.tabs.query(queryInfo, function(tabs) {
-  //   url = tabs[0].url;
-  // });
-  // alert(url); // Shows "undefined", because chrome.tabs.query is async.
-}
-
-/**
- * @param {string} searchTerm - Search term for Google Image search.
- * @param {function(string,number,number)} callback - Called when an image has
- *   been found. The callback gets the URL, width and height of the image.
- * @param {function(string)} errorCallback - Called when the image is not found.
- *   The callback gets a string that describes the failure reason.
- */
-function getImageUrl(searchTerm, callback, errorCallback) {
-  // Google image search - 100 searches per day.
-  // https://developers.google.com/image-search/
-  var searchUrl = 'https://ajax.googleapis.com/ajax/services/search/images' +
-    '?v=1.0&q=' + encodeURIComponent(searchTerm);
-  var x = new XMLHttpRequest();
-  x.open('GET', searchUrl);
-  // The Google image search API responds with JSON, so let Chrome parse it.
-  x.responseType = 'json';
-  x.onload = function() {
-    // Parse and process the response from Google Image Search.
-    var response = x.response;
-    if (!response || !response.responseData || !response.responseData.results ||
-        response.responseData.results.length === 0) {
-      errorCallback('No response from Google Image search!');
-      return;
-    }
-    var firstResult = response.responseData.results[0];
-    // Take the thumbnail instead of the full image to get an approximately
-    // consistent image size.
-    var imageUrl = firstResult.tbUrl;
-    var width = parseInt(firstResult.tbWidth);
-    var height = parseInt(firstResult.tbHeight);
-    console.assert(
-        typeof imageUrl == 'string' && !isNaN(width) && !isNaN(height),
-        'Unexpected respose from the Google Image Search API!');
-    callback(imageUrl, width, height);
-  };
-  x.onerror = function() {
-    errorCallback('Network error.');
-  };
-  x.send();
-}
-
-function renderStatus(statusText) {
-  document.getElementById('status').textContent = statusText;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  getCurrentTabUrl(function(url) {
-    // Put the image URL in Google search.
-    renderStatus('Performing Google Image search for ' + url);
-
-    getImageUrl(url, function(imageUrl, width, height) {
-
-      renderStatus('Search term: ' + url + '\n' +
-          'Google image search result: ' + imageUrl);
-      var imageResult = document.getElementById('image-result');
-      // Explicitly set the width/height to minimize the number of reflows. For
-      // a single image, this does not matter, but if you're going to embed
-      // multiple external images in your page, then the absence of width/height
-      // attributes causes the popup to resize multiple times.
-      imageResult.width = width;
-      imageResult.height = height;
-      imageResult.src = imageUrl;
-      imageResult.hidden = false;
-
-    }, function(errorMessage) {
-      renderStatus('Cannot display image. ' + errorMessage);
+function go() {
+  var albumDetails = "<font rwr='1' size='4' style='font-family:Arial'><div>";
+  var trackList = "<div><div><u>Track List</u></div>";
+  var listingIdInput = $("#listingIds").val();
+  var listingIds = listingIdInput.split(" ").map(function(s) { return s.trim() });; 
+  var img = "<pre>" + genImagikConvert(listingIds) + "</pre>";
+  var finders = genFinder(listingIds);
+  var listings = listingIds.map(function(listingId) { 
+    return Promise.resolve( $.ajax('https://api.discogs.com/marketplace/listings/' + listingId) ).then(function(listing) {
+      return Promise.resolve( $.ajax('https://api.discogs.com/releases/' + listing.release.id)).then(function(release) {
+        albumDetails = albumDetails + genAlbumDetails(listing, release);
+        trackList = trackList + genTrackList(release);
+      });
     });
   });
-});
+
+  Promise.all(listings).then(function() {
+    trackList = trackList + "</div>";
+    albumDetails = albumDetails + "</div></font>";
+    $("#imagik").html(img);
+    $("#finder").html(finders);
+    $("#output").html(albumDetails + trackList);
+  });
+
+
+}
+
+function genFinder(listingIds) {
+	var open = "open";
+	listingIds.forEach(function(f) { open = open + " " + rootDir + f + "/images";})
+	return open;
+};
+
+function genImagikConvert(listingIds) {
+  var files = listingIds.map(function(li) { return rootDir + li + "/images/cover.jpg";});  
+  if (files.length <= 1) {
+	  return "";
+  } else if (files.length == 2) {
+	  return "convert +append " + files[0] + " " + files[1] + " /Users/tstevens/tmp/cover.jpg";
+  } else if (files.length == 3) {
+	  return "convert +append " +  files[0] + " " + files[1] + " /Users/tstevens/tmp/cover.jpg\n" +
+		  "convert -append /Users/tstevens/tmp/cover.jpg " + files[2] + " /Users/tstevens/tmp/cover.jpg\n";
+  } else if (files.length == 4) {
+	  return "convert +append " +  files[0] + " " + files[1] + " /Users/tstevens/tmp/cover1.jpg\n" +
+	         "convert +append " +  files[2] + " " + files[3] + " /Users/tstevens/tmp/cover2.jpg\n" +
+		  "convert -append /Users/tstevens/tmp/cover1.jpg /Users/tstevens/tmp/cover2.jpg /Users/tstevens/tmp/cover.jpg\n";
+  } else {
+	  return files.toString();
+  }
+
+  
+}
+
+function genTrackList(release) {
+  var output = "<div><u>" + release.title + "</u><ul>";
+  var tl = release.tracklist;
+  for (var i = 0; i < tl.length; i++) {
+    output += "<li>" + tl[i].position + " " + tl[i].title + " " + tl[i].duration + "</li>";
+  }  
+  return output + "</ul></div>";
+}
+
+function genAlbumDetails(listing, release) {
+  var condition = listing.comments.split("..");	
+  var conditionOut = "<ul><li>" + condition[0] + "</li>";
+  if (condition.length > 1) {
+    conditionOut += "<li>" + condition[1] + "</li>";
+  }
+  var labelText = null;
+  
+  if (release.labels.length > 0) {
+  	labelText = release.labels.map(function (l) { return l.name + " -- " + l.catno }).toString();
+  } else {
+  	labelText = "";
+  }
+
+  var year = null;
+  if (release.year) { year = release.year + " " }
+  else year = "";
+
+  var output = "<div><div><h2>" + listing.release.description + "</h2>" + year + labelText + "</div><div>"  + conditionOut + "</div></div>";
+
+  return output;
+}
+

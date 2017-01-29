@@ -17,7 +17,6 @@
         white-space: pre;
         text-overflow: ellipsis;
         overflow: hidden;
-        max-width: 400px;
       }
     </style>
 
@@ -27,11 +26,25 @@
       -
       - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
      -->
+    <script src="lib/underscore-min.js"></script>
+    <script src="lib/jquery-3.1.1.min.js"></script>
+    <script src="lib/Dropbox-sdk.min.js"></script>
     <script src="popup.js"></script>
   </head>
   <body>
-    <div id="status"></div>
-    <img id="image-result" hidden>
+	  <div>
+		  Listing IDs: <textarea id="listingIds" rows="5" cols="9"></textarea>
+		  <button id="gobutton">Gen Listing</button>
+	  </div>
+	  <div id="imagik">
+	  </div>
+	  <br />
+	  <div id="finder">
+	  </div>
+	  <br />
+	  <div id="output">
+               
+	  </div>
   </body>
 </html>
 
