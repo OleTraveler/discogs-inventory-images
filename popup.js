@@ -4,6 +4,11 @@ $( document ).ready(function() {
 
 var rootDir = "/Users/tstevens/Dropbox/Apps/discogs-inventory-images/";
 
+function sleepFor( sleepDuration ){
+	    var now = new Date().getTime();
+	    while(new Date().getTime() < now + sleepDuration){ /* do nothing */ } 
+}
+
 function go() {
   var albumDetails = "<font rwr='1' size='4' style='font-family:Arial'><div>";
   var trackList = "<div><div><u>Track List</u></div>";
@@ -11,24 +16,21 @@ function go() {
   var listingIds = listingIdInput.split(" ").map(function(s) { return s.trim() });; 
   var img = "<pre>" + genImagikConvert(listingIds) + "</pre>";
   var finders = genFinder(listingIds);
-  var listings = listingIds.map(function(listingId) { 
-    return Promise.resolve( $.ajax('https://api.discogs.com/marketplace/listings/' + listingId) ).then(function(listing) {
-      return Promise.resolve( $.ajax('https://api.discogs.com/releases/' + listing.release.id)).then(function(release) {
-        albumDetails = albumDetails + genAlbumDetails(listing, release);
-        trackList = trackList + genTrackList(release);
-      });
-    });
-  });
-
-  Promise.all(listings).then(function() {
-    trackList = trackList + "</div>";
-    albumDetails = albumDetails + "</div></font>";
+  listingIds.map(function(listingId, i) { 
+    console.log("listing: " + listingId + " i: " + i);
+    var listing = $.ajax({ async: false, url: 'https://api.discogs.com/marketplace/listings/' + listingId});
+    var release = $.ajax({ async: false, url: 'https://api.discogs.com/releases/' + listing.responseJSON.release.id});
+    if ((i % 2) == 1) {
+      sleepFor(60000);
+    }
+	  
+    albumDetails = albumDetails + genAlbumDetails(listing.responseJSON, release.responseJSON) + "</div></font>";
+    trackList = trackList + genTrackList(listing.responseJSON, release.responseJSON) + "</div>";
+    
     $("#imagik").html(img);
     $("#finder").html(finders);
     $("#output").html(albumDetails + trackList);
   });
-
-
 }
 
 function genFinder(listingIds) {
@@ -57,8 +59,8 @@ function genImagikConvert(listingIds) {
   
 }
 
-function genTrackList(release) {
-  var output = "<div><u>" + release.title + "</u><ul>";
+function genTrackList(listing, release) {
+  var output = "<div><u>" + release.title + "</u> (" + listing.id + ")<ul>";
   var tl = release.tracklist;
   for (var i = 0; i < tl.length; i++) {
     output += "<li>" + tl[i].position + " " + tl[i].title + " " + tl[i].duration + "</li>";
@@ -87,5 +89,12 @@ function genAlbumDetails(listing, release) {
   var output = "<div><div><h2>" + listing.release.description + "</h2>" + year + labelText + "</div><div>"  + conditionOut + "</div></div>";
 
   return output;
+}
+
+function onDelete() {
+   var checkedItems = $("input[name=item]:checked");
+   for (var i = 0; i < checkedItems.length; i++) {
+      
+   } 
 }
 

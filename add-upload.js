@@ -2,6 +2,7 @@
 $('table.sell > thead > tr').append("<th>Dropbox Images</th>");
 
 var dbx = new Dropbox({ accessToken: accessToken });
+//var dbx = new Dropbox({ accessToken: accessToken, clientId: CLIENT_ID });
 
 function filePath(itemNumber) {
   return itemFolder = "/" + itemNumber + "/images";
@@ -65,20 +66,20 @@ function updateUploadHtml(itemNumber) {
     var path = filePath(itemNumber) ;
     dbx.filesListFolder({path: path + "/"})
       .then(function(response) {
-	dbx.sharingCreateSharedLink({path:path}).then(function(response2) {
           $(element).html('<a href="https://www.dropbox.com/home/Apps/discogs-inventory-images' + path + '">DB</a> ');
 	  var copyFrom = $('<span>CP </span>');
 	  $(element).append(copyFrom);
 	  //clicking on the CP copies the URL to the clipboard.
 	  copyFrom.click(function() { 
-	    var $temp = $("<input>");
-	    $("body").append($temp);
-	    $temp.val(response2.url).select();
-	    document.execCommand("copy");
-	   $temp.remove();
+	    dbx.sharingCreateSharedLink({path:path}).then(function(response2) {
+	      var $temp = $("<input>");
+	      $("body").append($temp);
+	      $temp.val(response2.url).select();
+	      document.execCommand("copy");
+	      $temp.remove();
+            });
 	  }); 
 	  $(element).append("<span>" + response.entries.length + " files</span>");
-          
 	  
           $(element).mouseover(function(event) {
             $('<div id="tooltip' + itemNumber + '"></div>').appendTo('body');
@@ -97,7 +98,6 @@ function updateUploadHtml(itemNumber) {
           });
 
           
-        });
       })
       .catch(function(error) {
         console.error(error);
@@ -105,6 +105,39 @@ function updateUploadHtml(itemNumber) {
   }
 
 }
+
+var deleteUrl = "https://api.dropboxapi.com/1/fileops/delete";
+function deleteSelectedFromDropbox() {
+   var checkedItems = $("input[name=item]:checked");
+   console.log("There are " + checkedItems.length + " item(s) do delete from dropbox.");
+   var logResultF = function(result) {
+      console.log(result);
+   }
+   for (var i = 0; i < checkedItems.length; i++) {
+      //little guard, make sure we delete a subdir and not root
+      var val = $(checkedItems[i]).val();
+      if (val.length > 0) {
+        var obj = {
+	      root: "auto",
+	      path: "/" + val
+        };
+	var header = {
+		"Authorization" : "Bearer " + accessToken
+	}
+        $.ajax({
+	  method: 'POST',
+	  url: deleteUrl, 
+	  data: obj, 
+	  headers:header 
+	}).done(function(result) {
+            console.log("DELETE result:" + result);
+	});
+      
+      }
+   }
+}
+
+$("button[name='Action.Delete']").click(deleteSelectedFromDropbox);
 
 var tr = $('table.sell > tbody > tr').append('<td>') ;
 
@@ -130,7 +163,6 @@ initialFileList();
 
 
 function uploadFile(itemNumber, form) {
-  var dbx = new Dropbox({ accessToken: accessToken, clientId: CLIENT_ID });
 
   var fileInput = form.getElementByClassName('file-upload');
   var file = fileInput.files[0];
@@ -143,3 +175,6 @@ function uploadFile(itemNumber, form) {
     });
   return false;
 }
+
+
+
